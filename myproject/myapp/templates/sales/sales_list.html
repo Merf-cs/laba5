@@ -4,22 +4,63 @@
     <title>Список данных</title>
 </head>
 <body>
-    <h1>Список файлов и данных</h1>
-    {% if files %}
-        <h2>Файлы:</h2>
-        <ul>
-            {% for file in files %}
-                <li>{{ file }}</li>
-            {% endfor %}
-        </ul>
+<!-- Форма выбора источника данных -->
+<div>
+    <a href="?source=db">Источник: База данных</a> | 
+    <a href="?source=files">Источник: Файлы (JSON/XML)</a>
+</div>
 
-        <h2>Данные:</h2>
-        {% for sale in sales %}
-            <h3>{{ sale.type }}</h3>
-            <pre>{{ sale.data|safe }}</pre>
-        {% endfor %}
-    {% else %}
-        <p>Файлы отсутствуют.</p>
-    {% endif %}
+<h1>Список продаж</h1>
+
+<!-- Поиск с помощью AJAX -->
+<form method="GET" action="{% url 'sales_list' %}">
+    <input type="text" name="query" value="{{ request.GET.query }}" placeholder="Поиск...">
+    <button type="submit">Искать</button>
+</form>
+
+
+<!-- Список продаж -->
+<ul>
+    {% for sale in sales %}
+        <li>
+            {{ sale.date }} - {{ sale.product }} - {{ sale.quantity }} - {{ sale.price }}
+            
+            <!-- Кнопки для редактирования и удаления (только для данных из базы данных) -->
+            {% if source == 'db' %}
+                <a href="{% url 'edit_sale' sale.id %}">Редактировать</a> | 
+                <a href="{% url 'delete_sale' sale.id %}">Удалить</a>
+            {% endif %}
+        </li>
+    {% empty %}
+        <li>Нет данных для отображения.</li>
+    {% endfor %}
+</ul>
+
+<!-- AJAX поиск -->
+<script>
+    document.getElementById('search_query').addEventListener('input', function() {
+        var query = this.value;
+
+        // Отправка запроса на сервер
+        fetch(`/sales/search/?query=${query}`)
+            .then(response => response.json())
+            .then(data => {
+                // Очистка списка и обновление
+                let salesList = document.querySelector('ul');
+                salesList.innerHTML = '';
+
+                // Добавление результатов поиска в список
+                data.forEach(sale => {
+                    let li = document.createElement('li');
+                    li.innerHTML = `${sale.date} - ${sale.product} - ${sale.quantity} - ${sale.price}`;
+                    
+                    // Добавляем кнопки редактирования и удаления для базы данных
+                    li.innerHTML += ` | <a href="/sales/edit/${sale.id}">Редактировать</a> | <a href="/sales/delete/${sale.id}">Удалить</a>`;
+                    salesList.appendChild(li);
+                });
+            })
+            .catch(error => console.error('Ошибка поиска:', error));
+    });
+</script>
 </body>
 </html>
